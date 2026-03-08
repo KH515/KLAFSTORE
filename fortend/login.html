@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول - KLAF</title>
+</head>
+<body>
+
+  <h1>KLAF</h1>
+
+  <!-- تسجيل الدخول -->
+  <div id="loginForm">
+    <h2>تسجيل الدخول</h2>
+    <input type="email" id="loginEmail" placeholder="الإيميل" />
+    <input type="password" id="loginPassword" placeholder="كلمة المرور" />
+    <button onclick="login()">دخول</button>
+    <p>ما عندك حساب؟ <a href="#" onclick="showRegister()">سجل الآن</a></p>
+  </div>
+
+  <!-- إنشاء حساب -->
+  <div id="registerForm" style="display:none">
+    <h2>إنشاء حساب</h2>
+    <input type="text" id="regName" placeholder="الاسم" />
+    <input type="email" id="regEmail" placeholder="الإيميل" />
+    <input type="password" id="regPassword" placeholder="كلمة المرور" />
+    <button onclick="register()">تسجيل</button>
+    <p>عندك حساب؟ <a href="#" onclick="showLogin()">ادخل</a></p>
+  </div>
+
+  <p id="message"></p>
+
+  <script>
+    const API = 'https://klaf-api.workers.dev';
+
+    function showRegister() {
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('registerForm').style.display = 'block';
+    }
+
+    function showLogin() {
+      document.getElementById('registerForm').style.display = 'none';
+      document.getElementById('loginForm').style.display = 'block';
+    }
+
+    async function login() {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+
+      const res = await fetch(`${API}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        // حفظ التوكن والمستخدم
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+
+        // توجيه حسب الصلاحية
+        if (data.user.role === 'admin') {
+          window.location.href = 'dashboard.html';
+        } else {
+          window.location.href = 'index.html';
+        }
+      } else {
+        document.getElementById('message').textContent = data.error;
+      }
+    }
+
+    async function register() {
+      const name = document.getElementById('regName').value;
+      const email = document.getElementById('regEmail').value;
+      const password = document.getElementById('regPassword').value;
+
+      const res = await fetch(`${API}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        document.getElementById('message').textContent = 'تم التسجيل! سجل دخولك الآن';
+        showLogin();
+      } else {
+        document.getElementById('message').textContent = data.error;
+      }
+    }
+  </script>
+
+</body>
+</html>

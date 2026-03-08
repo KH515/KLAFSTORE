@@ -1,0 +1,20 @@
+{
+  "name": "klaf-api",
+  "main": "src/index.js",
+  "compatibility_date": "2024-01-01",
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "klaf-db",
+      "database_id": "3090a209-f677-4ccb-8eba-ce7992e65c66"
+    }
+  ],
+
+  "kv_namespaces": [
+    {
+      "binding": "SESSIONS",
+      "id": "98e99d1170c34d8eb21fd08923876e7a"
+    }
+  ]
+}

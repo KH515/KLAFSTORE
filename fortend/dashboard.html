@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KLAF - لوحة التحكم</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- شريط التنقل -->
+  <nav>
+    <h1>KLAF - لوحة التحكم</h1>
+    <div>
+      <button onclick="showTab('products')">المنتجات</button>
+      <button onclick="showTab('orders')">الطلبات</button>
+      <button onclick="logout()">خروج</button>
+    </div>
+  </nav>
+
+  <!-- تبويب المنتجات -->
+  <div id="tab-products">
+    <h2>المنتجات</h2>
+
+    <!-- إضافة منتج -->
+    <div>
+      <h3>إضافة منتج جديد</h3>
+      <input type="text" id="pName" placeholder="اسم المنتج" />
+      <input type="text" id="pDesc" placeholder="الوصف" />
+      <input type="number" id="pPrice" placeholder="السعر" />
+      <input type="number" id="pStock" placeholder="المخزون" />
+      <input type="text" id="pImage" placeholder="رابط الصورة" />
+      <button onclick="addNewProduct()">إضافة</button>
+    </div>
+
+    <div id="productsList"></div>
+  </div>
+
+  <!-- تبويب الطلبات -->
+  <div id="tab-orders" style="display:none">
+    <h2>الطلبات</h2>
+    <div id="ordersList"></div>
+  </div>
+
+  <p id="message"></p>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    requireAdmin();
+
+    // تبديل التبويبات
+    function showTab(tab) {
+      document.getElementById('tab-products').style.display = tab === 'products' ? 'block' : 'none';
+      document.getElementById('tab-orders').style.display = tab === 'orders' ? 'block' : 'none';
+      if (tab === 'orders') loadOrders();
+    }
+
+    // ====== المنتجات ======
+    async function loadProducts() {
+      const res = await getProducts();
+      if (!res.ok) return;
+
+      const container = document.getElementById('productsList');
+      container.innerHTML = '';
+
+      res.data.forEach(product => {
+        container.innerHTML += `
+          <div>
+            <h3>${product.name}</h3>
+            <p>${product.price} ريال | المخزون: ${product.stock}</p>
+            <button onclick="deleteProductById(${product.id})">حذف</button>
+          </div>
+        `;
+      });
+    }
+
+    async function addNewProduct() {
+      const product = {
+        name: document.getElementById('pName').value,
+        description: document.getElementById('pDesc').value,
+        price: parseFloat(document.getElementById('pPrice').value),
+        stock: parseInt(document.getElementById('pStock').value),
+        image_url: document.getElementById('pImage').value
+      };
+
+      const res = await addProduct(product);
+      if (res.ok) {
+        document.getElementById('message').textContent = 'تم إضافة المنتج ✅';
+        loadProducts();
+      } else {
+        document.getElementById('message').textContent = res.data.error;
+      }
+    }
+
+    async function deleteProductById(id) {
+      if (!confirm('تأكيد الحذف؟')) return;
+      const res = await deleteProduct(id);
+      if (res.ok) {
+        document.getElementById('message').textContent = 'تم الحذف ✅';
+        loadProducts();
+      }
+    }
+
+    // ====== الطلبات ======
+    async function loadOrders() {
+      const res = await getAllOrders();
+      if (!res.ok) return;
+
+      const container = document.getElementById('ordersList');
+      container.innerHTML = '';
+
+      res.data.forEach(order => {
+        container.innerHTML += `
+          <div>
+            <h3>طلب #${order.id}</h3>
+            <p>العميل: ${order.user_id} | المجموع: ${order.total} ريال</p>
+            <p>العنوان: ${order.address}</p>
+            <p>التاريخ: ${new Date(order.created_at).toLocaleDateString('ar-SA')}</p>
+            <select onchange="changeStatus(${order.id}, this.value)">
+              <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>⏳ قيد الانتظار</option>
+              <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>⚙️ جاري التجهيز</option>
+              <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>🚚 في الطريق</option>
+              <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>✅ تم التوصيل</option>
+            </select>
+          </div>
+        `;
+      });
+    }
+
+    async function changeStatus(id, status) {
+      const res = await updateOrderStatus(id, status);
+      if (res.ok) {
+        document.getElementById('message').textContent = 'تم تحديث الحالة ✅';
+      }
+    }
+
+    // تحميل المنتجات عند الفتح
+    loadProducts();
+  </script>
+
+</body>
+</html>
