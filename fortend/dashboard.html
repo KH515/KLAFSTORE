@@ -37,7 +37,7 @@
       <thead>
         <tr>
           <th>#</th>
-          <th>رقم العميل</th>
+          <th>اسم العميل</th>
           <th>الجوال</th>
           <th>العنوان</th>
           <th>المجموع</th>
@@ -111,11 +111,15 @@
         tbody.innerHTML = '<tr><td colspan="7">لا يوجد طلبات</td></tr>';
         return;
       }
-      res.data.forEach(order => {
+      for (const order of res.data) {
+        const userRes = await fetch(`${API_URL}/api/auth/user/${order.user_id}`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const user = userRes.ok ? await userRes.json() : { name: '-' };
         tbody.innerHTML += `
           <tr>
             <td>${order.id}</td>
-            <td>${order.user_id}</td>
+            <td>${user.name || '-'}</td>
             <td>${order.phone || '-'}</td>
             <td>${order.address}</td>
             <td>${order.total} ريال</td>
@@ -130,7 +134,7 @@
             </td>
           </tr>
         `;
-      });
+      }
     }
 
     async function changeStatus(id, status) {
