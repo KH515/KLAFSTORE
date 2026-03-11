@@ -8,7 +8,6 @@
 </head>
 <body>
 
-  <!-- شريط التنقل -->
   <nav>
     <h1>KLAF</h1>
     <div>
@@ -20,16 +19,15 @@
     </div>
   </nav>
 
-  <!-- المنتجات -->
   <h2>المنتجات</h2>
   <div id="products"></div>
 
-  <!-- سلة المشتريات -->
   <div id="cartModal" style="display:none">
     <h2>سلة المشتريات</h2>
     <div id="cartItems"></div>
     <p>المجموع: <span id="cartTotal"></span> ريال</p>
     <input type="text" id="address" placeholder="عنوان التوصيل" />
+    <input type="tel" id="phone" placeholder="رقم الجوال" />
     <button onclick="checkout()">تأكيد الطلب</button>
     <button onclick="hideCart()">إغلاق</button>
   </div>
@@ -40,7 +38,6 @@
   <script src="js/api.js"></script>
   <script src="js/cart.js"></script>
   <script>
-    // عرض اسم المستخدم إذا مسجل دخول
     const user = getUser();
     if (user) {
       document.getElementById('userName').textContent = `أهلاً ${user.name}`;
@@ -48,14 +45,11 @@
       document.getElementById('loginBtn').style.display = 'none';
     }
 
-    // جيب المنتجات
     async function loadProducts() {
       const res = await getProducts();
       if (!res.ok) return;
-
       const container = document.getElementById('products');
       container.innerHTML = '';
-
       res.data.forEach(product => {
         container.innerHTML += `
           <div>
@@ -64,24 +58,17 @@
             <p>${product.description}</p>
             <p>${product.price} ريال</p>
             <p>المخزون: ${product.stock}</p>
-            <button onclick="addToCart(${JSON.stringify(product).replace(/"/g, '&quot;')})">
-              أضف للسلة
-            </button>
+            <button onclick="addToCart(${JSON.stringify(product).replace(/"/g, '&quot;')})">أضف للسلة</button>
           </div>
         `;
       });
     }
 
-    // عرض السلة
     function showCart() {
-      if (!user) {
-        window.location.href = 'login.html';
-        return;
-      }
+      if (!user) { window.location.href = 'login.html'; return; }
       const cart = getCart();
       const cartItems = document.getElementById('cartItems');
       cartItems.innerHTML = '';
-
       cart.forEach(item => {
         cartItems.innerHTML += `
           <div>
@@ -93,7 +80,6 @@
           </div>
         `;
       });
-
       document.getElementById('cartTotal').textContent = getCartTotal();
       document.getElementById('cartModal').style.display = 'block';
     }
@@ -102,47 +88,25 @@
       document.getElementById('cartModal').style.display = 'none';
     }
 
-    // تأكيد الطلب
     async function checkout() {
-      if (!user) {
-        window.location.href = 'login.html';
-        return;
-      }
-
+      if (!user) { window.location.href = 'login.html'; return; }
       const cart = getCart();
       const address = document.getElementById('address').value;
-
-      if (!address) {
-        document.getElementById('message').textContent = 'أدخل عنوان التوصيل';
-        return;
-      }
-
-      if (cart.length === 0) {
-        document.getElementById('message').textContent = 'السلة فاضية';
-        return;
-      }
-
-      const items = cart.map(item => ({
-        product_id: item.id,
-        quantity: item.quantity
-      }));
-
-      const res = await createOrder({
-        user_id: user.id,
-        items,
-        address
-      });
-
+      const phone = document.getElementById('phone').value;
+      if (!address) { document.getElementById('message').textContent = 'أدخل عنوان التوصيل'; return; }
+      if (!phone) { document.getElementById('message').textContent = 'أدخل رقم الجوال'; return; }
+      if (cart.length === 0) { document.getElementById('message').textContent = 'السلة فاضية'; return; }
+      const items = cart.map(item => ({ product_id: item.id, quantity: item.quantity }));
+      const res = await createOrder({ user_id: user.id, items, address, phone });
       if (res.ok) {
         clearCart();
         hideCart();
-        document.getElementById('message').textContent = 'تم إرسال طلبك بنجاح!';
+        document.getElementById('message').textContent = 'تم إرسال طلبك بنجاح! ✅';
       } else {
         document.getElementById('message').textContent = res.data.error;
       }
     }
 
-    // تحميل المنتجات عند فتح الصفحة
     loadProducts();
     updateCartCount();
   </script>
