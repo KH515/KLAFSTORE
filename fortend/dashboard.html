@@ -3,140 +3,116 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KLAF - لوحة التحكم</title>
+  <title>KLAF - المتجر</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-  <!-- شريط التنقل -->
   <nav>
-    <h1>KLAF - لوحة التحكم</h1>
+    <h1>KLAF</h1>
     <div>
-      <button onclick="showTab('products')">المنتجات</button>
-      <button onclick="showTab('orders')">الطلبات</button>
-      <button onclick="logout()">خروج</button>
+      <span id="userName"></span>
+      <button onclick="window.location.href='orders.html'">طلباتي</button>
+      <button onclick="showCart()">🛒 <span id="cartCount">0</span></button>
+      <button id="logoutBtn" onclick="logout()" style="display:none">خروج</button>
+      <button id="loginBtn" onclick="window.location.href='login.html'">دخول</button>
     </div>
   </nav>
 
-  <!-- تبويب المنتجات -->
-  <div id="tab-products">
-    <h2>المنتجات</h2>
+  <h2>المنتجات</h2>
+  <div id="products"></div>
 
-    <!-- إضافة منتج -->
-    <div>
-      <h3>إضافة منتج جديد</h3>
-      <input type="text" id="pName" placeholder="اسم المنتج" />
-      <input type="text" id="pDesc" placeholder="الوصف" />
-      <input type="number" id="pPrice" placeholder="السعر" />
-      <input type="number" id="pStock" placeholder="المخزون" />
-      <input type="text" id="pImage" placeholder="رابط الصورة" />
-      <button onclick="addNewProduct()">إضافة</button>
-    </div>
-
-    <div id="productsList"></div>
-  </div>
-
-  <!-- تبويب الطلبات -->
-  <div id="tab-orders" style="display:none">
-    <h2>الطلبات</h2>
-    <div id="ordersList"></div>
+  <div id="cartModal" style="display:none">
+    <h2>سلة المشتريات</h2>
+    <div id="cartItems"></div>
+    <p>المجموع: <span id="cartTotal"></span> ريال</p>
+    <input type="text" id="address" placeholder="عنوان التوصيل" />
+    <input type="tel" id="phone" placeholder="رقم الجوال" />
+    <button onclick="checkout()">تأكيد الطلب</button>
+    <button onclick="hideCart()">إغلاق</button>
   </div>
 
   <p id="message"></p>
 
   <script src="js/auth.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/cart.js"></script>
   <script>
-    requireAdmin();
-
-    // تبديل التبويبات
-    function showTab(tab) {
-      document.getElementById('tab-products').style.display = tab === 'products' ? 'block' : 'none';
-      document.getElementById('tab-orders').style.display = tab === 'orders' ? 'block' : 'none';
-      if (tab === 'orders') loadOrders();
+    const user = getUser();
+    if (user) {
+      document.getElementById('userName').textContent = `أهلاً ${user.name}`;
+      document.getElementById('logoutBtn').style.display = 'inline';
+      document.getElementById('loginBtn').style.display = 'none';
     }
 
-    // ====== المنتجات ======
     async function loadProducts() {
       const res = await getProducts();
       if (!res.ok) return;
-
-      const container = document.getElementById('productsList');
+      const container = document.getElementById('products');
       container.innerHTML = '';
-
       res.data.forEach(product => {
         container.innerHTML += `
           <div>
+            <img src="${product.image_url}" alt="${product.name}" width="150" />
             <h3>${product.name}</h3>
-            <p>${product.price} ريال | المخزون: ${product.stock}</p>
-            <button onclick="deleteProductById(${product.id})">حذف</button>
+            <p>${product.description}</p>
+            <p>${product.price} ريال</p>
+            <p>المخزون: ${product.stock}</p>
+            <button onclick="addToCart(${JSON.stringify(product).replace(/"/g, '&quot;')})">أضف للسلة</button>
           </div>
         `;
       });
     }
 
-    async function addNewProduct() {
-      const product = {
-        name: document.getElementById('pName').value,
-        description: document.getElementById('pDesc').value,
-        price: parseFloat(document.getElementById('pPrice').value),
-        stock: parseInt(document.getElementById('pStock').value),
-        image_url: document.getElementById('pImage').value
-      };
+    function showCart() {
+      if (!user) { window.location.href = 'login.html'; return; }
+      const cart = getCart();
+      const cartItems = document.getElementById('cartItems');
+      cartItems.innerHTML = '';
+      cart.forEach(item => {
+        cartItems.innerHTML += `
+          <div>
+            <span>${item.name}</span>
+            <span>${item.price} ريال</span>
+            <input type="number" value="${item.quantity}" min="1"
+              onchange="updateQuantity(${item.id}, parseInt(this.value))" />
+            <button onclick="removeFromCart(${item.id})">حذف</button>
+          </div>
+        `;
+      });
+      document.getElementById('cartTotal').textContent = getCartTotal();
+      document.getElementById('cartModal').style.display = 'block';
+    }
 
-      const res = await addProduct(product);
+    function hideCart() {
+      document.getElementById('cartModal').style.display = 'none';
+    }
+
+    async function checkout() {
+      if (!user) { window.location.href = 'login.html'; return; }
+      const cart = getCart();
+      const address = document.getElementById('address').value;
+      const phone = document.getElementById('phone').value;
+
+      if (!address) { document.getElementById('message').textContent = 'أدخل عنوان التوصيل'; return; }
+      if (!phone) { document.getElementById('message').textContent = 'أدخل رقم الجوال'; return; }
+      if (cart.length === 0) { document.getElementById('message').textContent = 'السلة فاضية'; return; }
+
+      const items = cart.map(item => ({ product_id: item.id, quantity: item.quantity }));
+
+      const res = await createOrder({ user_id: user.id, items, address, phone });
+
       if (res.ok) {
-        document.getElementById('message').textContent = 'تم إضافة المنتج ✅';
-        loadProducts();
+        clearCart();
+        hideCart();
+        document.getElementById('message').textContent = 'تم إرسال طلبك بنجاح! ✅';
       } else {
         document.getElementById('message').textContent = res.data.error;
       }
     }
 
-    async function deleteProductById(id) {
-      if (!confirm('تأكيد الحذف؟')) return;
-      const res = await deleteProduct(id);
-      if (res.ok) {
-        document.getElementById('message').textContent = 'تم الحذف ✅';
-        loadProducts();
-      }
-    }
-
-    // ====== الطلبات ======
-    async function loadOrders() {
-      const res = await getAllOrders();
-      if (!res.ok) return;
-
-      const container = document.getElementById('ordersList');
-      container.innerHTML = '';
-
-      res.data.forEach(order => {
-        container.innerHTML += `
-          <div>
-            <h3>طلب #${order.id}</h3>
-            <p>العميل: ${order.user_id} | المجموع: ${order.total} ريال</p>
-            <p>العنوان: ${order.address}</p>
-            <p>التاريخ: ${new Date(order.created_at).toLocaleDateString('ar-SA')}</p>
-            <select onchange="changeStatus(${order.id}, this.value)">
-              <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>⏳ قيد الانتظار</option>
-              <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>⚙️ جاري التجهيز</option>
-              <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>🚚 في الطريق</option>
-              <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>✅ تم التوصيل</option>
-            </select>
-          </div>
-        `;
-      });
-    }
-
-    async function changeStatus(id, status) {
-      const res = await updateOrderStatus(id, status);
-      if (res.ok) {
-        document.getElementById('message').textContent = 'تم تحديث الحالة ✅';
-      }
-    }
-
-    // تحميل المنتجات عند الفتح
     loadProducts();
+    updateCartCount();
   </script>
 
 </body>
