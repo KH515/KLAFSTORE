@@ -3,116 +3,144 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KLAF - المتجر</title>
+  <title>KLAF - لوحة التحكم</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
   <nav>
-    <h1>KLAF</h1>
+    <h1>KLAF - لوحة التحكم</h1>
     <div>
-      <span id="userName"></span>
-      <button onclick="window.location.href='orders.html'">طلباتي</button>
-      <button onclick="showCart()">🛒 <span id="cartCount">0</span></button>
-      <button id="logoutBtn" onclick="logout()" style="display:none">خروج</button>
-      <button id="loginBtn" onclick="window.location.href='login.html'">دخول</button>
+      <button onclick="showTab('products')">المنتجات</button>
+      <button onclick="showTab('orders')">الطلبات</button>
+      <button onclick="logout()">خروج</button>
     </div>
   </nav>
 
-  <h2>المنتجات</h2>
-  <div id="products"></div>
+  <div id="tab-products">
+    <h2>المنتجات</h2>
+    <div>
+      <h3>إضافة منتج جديد</h3>
+      <input type="text" id="pName" placeholder="اسم المنتج" />
+      <input type="text" id="pDesc" placeholder="الوصف" />
+      <input type="number" id="pPrice" placeholder="السعر" />
+      <input type="number" id="pStock" placeholder="المخزون" />
+      <input type="text" id="pImage" placeholder="رابط الصورة" />
+      <button onclick="addNewProduct()">إضافة</button>
+    </div>
+    <div id="productsList"></div>
+  </div>
 
-  <div id="cartModal" style="display:none">
-    <h2>سلة المشتريات</h2>
-    <div id="cartItems"></div>
-    <p>المجموع: <span id="cartTotal"></span> ريال</p>
-    <input type="text" id="address" placeholder="عنوان التوصيل" />
-    <input type="tel" id="phone" placeholder="رقم الجوال" />
-    <button onclick="checkout()">تأكيد الطلب</button>
-    <button onclick="hideCart()">إغلاق</button>
+  <div id="tab-orders" style="display:none">
+    <h2>الطلبات</h2>
+    <table border="1" cellpadding="8" cellspacing="0" width="100%">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>اسم العميل</th>
+          <th>الايميل</th>
+          <th>الجوال</th>
+          <th>العنوان</th>
+          <th>المجموع</th>
+          <th>التاريخ</th>
+          <th>الحالة</th>
+        </tr>
+      </thead>
+      <tbody id="ordersList"></tbody>
+    </table>
   </div>
 
   <p id="message"></p>
 
   <script src="js/auth.js"></script>
   <script src="js/api.js"></script>
-  <script src="js/cart.js"></script>
   <script>
-    const user = getUser();
-    if (user) {
-      document.getElementById('userName').textContent = `أهلاً ${user.name}`;
-      document.getElementById('logoutBtn').style.display = 'inline';
-      document.getElementById('loginBtn').style.display = 'none';
+    requireAdmin();
+
+    function showTab(tab) {
+      document.getElementById('tab-products').style.display = tab === 'products' ? 'block' : 'none';
+      document.getElementById('tab-orders').style.display = tab === 'orders' ? 'block' : 'none';
+      if (tab === 'orders') loadOrders();
     }
 
     async function loadProducts() {
       const res = await getProducts();
       if (!res.ok) return;
-      const container = document.getElementById('products');
+      const container = document.getElementById('productsList');
       container.innerHTML = '';
       res.data.forEach(product => {
         container.innerHTML += `
           <div>
-            <img src="${product.image_url}" alt="${product.name}" width="150" />
             <h3>${product.name}</h3>
-            <p>${product.description}</p>
-            <p>${product.price} ريال</p>
-            <p>المخزون: ${product.stock}</p>
-            <button onclick="addToCart(${JSON.stringify(product).replace(/"/g, '&quot;')})">أضف للسلة</button>
+            <p>${product.price} ريال | المخزون: ${product.stock}</p>
+            <button onclick="deleteProductById(${product.id})">حذف</button>
           </div>
         `;
       });
     }
 
-    function showCart() {
-      if (!user) { window.location.href = 'login.html'; return; }
-      const cart = getCart();
-      const cartItems = document.getElementById('cartItems');
-      cartItems.innerHTML = '';
-      cart.forEach(item => {
-        cartItems.innerHTML += `
-          <div>
-            <span>${item.name}</span>
-            <span>${item.price} ريال</span>
-            <input type="number" value="${item.quantity}" min="1"
-              onchange="updateQuantity(${item.id}, parseInt(this.value))" />
-            <button onclick="removeFromCart(${item.id})">حذف</button>
-          </div>
-        `;
-      });
-      document.getElementById('cartTotal').textContent = getCartTotal();
-      document.getElementById('cartModal').style.display = 'block';
-    }
-
-    function hideCart() {
-      document.getElementById('cartModal').style.display = 'none';
-    }
-
-    async function checkout() {
-      if (!user) { window.location.href = 'login.html'; return; }
-      const cart = getCart();
-      const address = document.getElementById('address').value;
-      const phone = document.getElementById('phone').value;
-
-      if (!address) { document.getElementById('message').textContent = 'أدخل عنوان التوصيل'; return; }
-      if (!phone) { document.getElementById('message').textContent = 'أدخل رقم الجوال'; return; }
-      if (cart.length === 0) { document.getElementById('message').textContent = 'السلة فاضية'; return; }
-
-      const items = cart.map(item => ({ product_id: item.id, quantity: item.quantity }));
-
-      const res = await createOrder({ user_id: user.id, items, address, phone });
-
+    async function addNewProduct() {
+      const product = {
+        name: document.getElementById('pName').value,
+        description: document.getElementById('pDesc').value,
+        price: parseFloat(document.getElementById('pPrice').value),
+        stock: parseInt(document.getElementById('pStock').value),
+        image_url: document.getElementById('pImage').value
+      };
+      const res = await addProduct(product);
       if (res.ok) {
-        clearCart();
-        hideCart();
-        document.getElementById('message').textContent = 'تم إرسال طلبك بنجاح! ✅';
-      } else {
-        document.getElementById('message').textContent = res.data.error;
+        document.getElementById('message').textContent = 'تم إضافة المنتج ✅';
+        loadProducts();
       }
     }
 
+    async function deleteProductById(id) {
+      if (!confirm('تأكيد الحذف؟')) return;
+      const res = await deleteProduct(id);
+      if (res.ok) {
+        document.getElementById('message').textContent = 'تم الحذف ✅';
+        loadProducts();
+      }
+    }
+
+    async function loadOrders() {
+      const res = await getAllOrders();
+      if (!res.ok) return;
+      const tbody = document.getElementById('ordersList');
+      tbody.innerHTML = '';
+      for (const order of res.data) {
+        const userRes = await fetch(`${API_URL}/api/auth/user/${order.user_id}`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const userData = userRes.ok ? await userRes.json() : { name: '-', email: '-' };
+        tbody.innerHTML += `
+          <tr>
+            <td>${order.id}</td>
+            <td>${userData.name || '-'}</td>
+            <td>${userData.email || '-'}</td>
+            <td>${order.phone || '-'}</td>
+            <td>${order.address}</td>
+            <td>${order.total} ريال</td>
+            <td>${new Date(order.created_at).toLocaleDateString('ar-SA')}</td>
+            <td>
+              <select onchange="changeStatus(${order.id}, this.value)">
+                <option value="pending" ${order.status==='pending'?'selected':''}>⏳ قيد الانتظار</option>
+                <option value="processing" ${order.status==='processing'?'selected':''}>⚙️ جاري التجهيز</option>
+                <option value="shipped" ${order.status==='shipped'?'selected':''}>🚚 في الطريق</option>
+                <option value="delivered" ${order.status==='delivered'?'selected':''}>✅ تم التوصيل</option>
+              </select>
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    async function changeStatus(id, status) {
+      const res = await updateOrderStatus(id, status);
+      if (res.ok) document.getElementById('message').textContent = 'تم تحديث الحالة ✅';
+    }
+
     loadProducts();
-    updateCartCount();
   </script>
 
 </body>
