@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KLAF - تفاصيل الطلب</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav>
+    <h1>KLAF</h1>
+    <div>
+      <span id="userName"></span>
+      <button onclick="window.location.href='orders.html'">طلباتي</button>
+      <button onclick="logout()">خروج</button>
+    </div>
+  </nav>
+
+  <div id="orderDetails">
+    <p>جاري التحميل...</p>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    requireLogin();
+
+    const user = getUser();
+    document.getElementById('userName').textContent = `أهلاً ${user.name}`;
+
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('id');
+
+    if (!orderId) window.location.href = 'orders.html';
+
+    const statusMap = {
+      'pending': '⏳ قيد الانتظار',
+      'processing': '⚙️ جاري التجهيز',
+      'shipped': '🚚 في الطريق',
+      'delivered': '✅ تم التوصيل'
+    };
+
+    async function loadOrder() {
+      const res = await getUserOrders(user.id);
+      if (!res.ok) return;
+
+      const order = res.data.find(o => o.id == orderId);
+      if (!order) {
+        document.getElementById('orderDetails').innerHTML = '<p>الطلب غير موجود</p>';
+        return;
+      }
+
+      document.getElementById('orderDetails').innerHTML = `
+        <div style="padding:20px; max-width:600px; margin:auto;">
+          <h2>تفاصيل الطلب #${order.id}</h2>
+          <div style="border:1px solid #ccc; border-radius:8px; padding:16px; margin:12px 0;">
+            <p><strong>الحالة:</strong> ${statusMap[order.status] || order.status}</p>
+            <p><strong>المجموع:</strong> ${order.total} ريال</p>
+            <p><strong>عنوان التوصيل:</strong> ${order.address}</p>
+            <p><strong>رقم الجوال:</strong> ${order.phone || '-'}</p>
+            <p><strong>التاريخ:</strong> ${new Date(order.created_at).toLocaleDateString('ar-SA')}</p>
+          </div>
+          <button onclick="window.location.href='orders.html'">← رجوع للطلبات</button>
+        </div>
+      `;
+    }
+
+    loadOrder();
+  </script>
+
+</body>
+</html>

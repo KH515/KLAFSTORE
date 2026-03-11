@@ -8,7 +8,6 @@
 </head>
 <body>
 
-  <!-- شريط التنقل -->
   <nav>
     <h1>KLAF</h1>
     <div>
@@ -40,21 +39,22 @@
         return;
       }
 
-      res.data.forEach(order => {
-        const statusMap = {
-          'pending': '⏳ قيد الانتظار',
-          'processing': '⚙️ جاري التجهيز',
-          'shipped': '🚚 في الطريق',
-          'delivered': '✅ تم التوصيل'
-        };
+      const statusMap = {
+        'pending': '⏳ قيد الانتظار',
+        'processing': '⚙️ جاري التجهيز',
+        'shipped': '🚚 في الطريق',
+        'delivered': '✅ تم التوصيل'
+      };
 
+      res.data.forEach(order => {
         container.innerHTML += `
-          <div>
+          <div style="border:1px solid #ccc; padding:16px; margin:12px 0; border-radius:8px;">
             <h3>طلب رقم #${order.id}</h3>
             <p>الحالة: ${statusMap[order.status] || order.status}</p>
             <p>المجموع: ${order.total} ريال</p>
             <p>العنوان: ${order.address}</p>
             <p>التاريخ: ${new Date(order.created_at).toLocaleDateString('ar-SA')}</p>
+            <button onclick="window.location.href='order.html?id=${order.id}'">عرض التفاصيل</button>
           </div>
         `;
       });
