@@ -1,4 +1,4 @@
-const API = 'https://klaf-api.workers.dev';
+const API = 'https://klaf-api.klafoifes.workers.dev';
 
 // دالة عامة للطلبات
 async function apiRequest(endpoint, method = 'GET', body = null) {
