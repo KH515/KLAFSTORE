@@ -2,13 +2,13 @@ export async function handleOrders(request, env, corsHeaders) {
   const url = new URL(request.url);
   const path = url.pathname;
   if (path === '/api/orders' && request.method === 'POST') {
-    const { user_id, items, address } = await request.json();
+    const { user_id, items, address, phone } = await request.json();
     let total = 0;
     for (const item of items) {
       const product = await env.DB.prepare('SELECT price FROM products WHERE id = ?').bind(item.product_id).first();
       total += product.price * item.quantity;
     }
-    const order = await env.DB.prepare('INSERT INTO orders (user_id, status, total, address, created_at) VALUES (?, ?, ?, ?, ?)').bind(user_id, 'pending', total, address, new Date().toISOString()).run();
+    const order = await env.DB.prepare('INSERT INTO orders (user_id, status, total, address, phone, created_at) VALUES (?, ?, ?, ?, ?, ?)').bind(user_id, 'pending', total, address, phone || null, new Date().toISOString()).run();
     const order_id = order.meta.last_row_id;
     for (const item of items) {
       const product = await env.DB.prepare('SELECT price FROM products WHERE id = ?').bind(item.product_id).first();

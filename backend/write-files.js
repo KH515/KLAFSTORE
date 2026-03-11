@@ -1,19 +1,16 @@
 const fs = require('fs');
 
-let auth = fs.readFileSync('src/routes/auth.js', 'utf8');
+let orders = fs.readFileSync('src/routes/orders.js', 'utf8');
 
-const newEndpoint = `
-  if (path.startsWith('/api/auth/user/') && request.method === 'GET') {
-    const id = path.split('/')[4];
-    const user = await env.DB.prepare('SELECT id, name, email, role FROM users WHERE id = ?').bind(id).first();
-    if (!user) return new Response(JSON.stringify({ error: 'not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    return new Response(JSON.stringify(user), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
+orders = orders.replace(
+  "const { user_id, items, address } = await request.json();",
+  "const { user_id, items, address, phone } = await request.json();"
+);
 
-  return new Response('Not Found', { status: 404, headers: corsHeaders });
-}`;
+orders = orders.replace(
+  "'INSERT INTO orders (user_id, status, total, address, created_at) VALUES (?, ?, ?, ?, ?)').bind(user_id, 'pending', total, address, new Date().toISOString())",
+  "'INSERT INTO orders (user_id, status, total, address, phone, created_at) VALUES (?, ?, ?, ?, ?, ?)').bind(user_id, 'pending', total, address, phone || null, new Date().toISOString())"
+);
 
-auth = auth.replace("  return new Response('Not Found', { status: 404, headers: corsHeaders });\n}", newEndpoint);
-
-fs.writeFileSync('src/routes/auth.js', auth, 'utf8');
+fs.writeFileSync('src/routes/orders.js', orders, 'utf8');
 console.log('done');
