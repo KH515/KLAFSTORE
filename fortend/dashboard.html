@@ -37,8 +37,7 @@
       <thead>
         <tr>
           <th>#</th>
-          <th>اسم العميل</th>
-          <th>الايميل</th>
+          <th>رقم العميل</th>
           <th>الجوال</th>
           <th>العنوان</th>
           <th>المجموع</th>
@@ -108,16 +107,15 @@
       if (!res.ok) return;
       const tbody = document.getElementById('ordersList');
       tbody.innerHTML = '';
-      for (const order of res.data) {
-        const userRes = await fetch(`${API_URL}/api/auth/user/${order.user_id}`, {
-          headers: { 'Authorization': `Bearer ${getToken()}` }
-        });
-        const userData = userRes.ok ? await userRes.json() : { name: '-', email: '-' };
+      if (res.data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7">لا يوجد طلبات</td></tr>';
+        return;
+      }
+      res.data.forEach(order => {
         tbody.innerHTML += `
           <tr>
             <td>${order.id}</td>
-            <td>${userData.name || '-'}</td>
-            <td>${userData.email || '-'}</td>
+            <td>${order.user_id}</td>
             <td>${order.phone || '-'}</td>
             <td>${order.address}</td>
             <td>${order.total} ريال</td>
@@ -132,7 +130,7 @@
             </td>
           </tr>
         `;
-      }
+      });
     }
 
     async function changeStatus(id, status) {
