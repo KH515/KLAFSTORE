@@ -15,7 +15,8 @@
       <span id="userName"></span>
       <button onclick="window.location.href='orders.html'">طلباتي</button>
       <button onclick="showCart()">🛒 <span id="cartCount">0</span></button>
-      <button onclick="logout()">خروج</button>
+      <button id="logoutBtn" onclick="logout()" style="display:none">خروج</button>
+      <button id="loginBtn" onclick="window.location.href='login.html'">دخول</button>
     </div>
   </nav>
 
@@ -39,12 +40,13 @@
   <script src="js/api.js"></script>
   <script src="js/cart.js"></script>
   <script>
-    // تحقق من تسجيل الدخول
-    requireLogin();
-
-    // عرض اسم المستخدم
+    // عرض اسم المستخدم إذا مسجل دخول
     const user = getUser();
-    document.getElementById('userName').textContent = `أهلاً ${user.name}`;
+    if (user) {
+      document.getElementById('userName').textContent = `أهلاً ${user.name}`;
+      document.getElementById('logoutBtn').style.display = 'inline';
+      document.getElementById('loginBtn').style.display = 'none';
+    }
 
     // جيب المنتجات
     async function loadProducts() {
@@ -72,6 +74,10 @@
 
     // عرض السلة
     function showCart() {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
       const cart = getCart();
       const cartItems = document.getElementById('cartItems');
       cartItems.innerHTML = '';
@@ -98,6 +104,11 @@
 
     // تأكيد الطلب
     async function checkout() {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
       const cart = getCart();
       const address = document.getElementById('address').value;
 
